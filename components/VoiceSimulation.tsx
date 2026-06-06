@@ -88,6 +88,9 @@ function VoiceSimulationInner({
       scenario_id: scenario.id,
       user_context_json: JSON.stringify(grouped.user_fact),
       agent_parameters_json: JSON.stringify(grouped.agent_parameter),
+      conversation_start_mode: getConversationStartMode(scenario.id),
+      agent_opening_question: getAgentOpeningQuestion(scenario.id, answers),
+      conversation_guidance: getConversationGuidance(scenario.id),
       max_duration_minutes: "5",
       max_user_turns: "12",
     };
@@ -154,7 +157,7 @@ function VoiceSimulationInner({
       }
       const { signedUrl } = (await signedUrlResponse.json()) as { signedUrl: string };
 
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      await requestMicrophoneAccess();
       await conversation.startSession({
         signedUrl,
         connectionType: "websocket",
@@ -166,11 +169,7 @@ function VoiceSimulationInner({
       startedAtRef.current = Date.now();
       setElapsed(0);
     } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to start the voice session.",
-      );
+      setError(formatStartSessionError(nextError));
     } finally {
       setIsStarting(false);
     }
@@ -365,6 +364,103 @@ function VoiceSimulationInner({
       </aside>
     </section>
   );
+}
+
+async function requestMicrophoneAccess() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error(
+      "This browser does not expose microphone access. Try a current version of Chrome, Safari, or Edge.",
+    );
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+  } catch (error) {
+    if (error instanceof DOMException) {
+      if (error.name === "NotAllowedError" || error.name === "SecurityError") {
+        throw new Error(
+          "Microphone access was denied. Allow microphone access for this browser and this site, then try again. If you just changed macOS permissions, restart Codex or use Chrome/Safari at localhost:3000.",
+        );
+      }
+      if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        throw new Error("No microphone was found. Connect a microphone, then try again.");
+      }
+    }
+    throw error;
+  }
+}
+
+function formatStartSessionError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return "Unable to start the voice session.";
+}
+
+function getAgentOpeningQuestion(
+  scenarioId: Scenario["id"],
+  answers: ContextAnswers,
+) {
+  if (scenarioId === "salary-negotiation") {
+    return "Alright, let's get started. You said you wanted to discuss something important?";
+  }
+
+  if (scenarioId === "networking-introduction") {
+    return "";
+  }
+
+  return `Thanks for coming in today. Please tell me about a time you ${getInterviewQuestion(answers.story_type)}.`;
+}
+
+function getConversationStartMode(scenarioId: Scenario["id"]) {
+  if (scenarioId === "networking-introduction") return "user_initialized";
+  return "agent_initialized";
+}
+
+function getInterviewQuestion(storyType?: string) {
+  if (storyType === "Conflict") {
+    return "navigated a conflict with a teammate or stakeholder";
+  }
+  if (storyType === "Leadership") {
+    return "led a project or group through a difficult situation";
+  }
+  if (storyType === "Failure") {
+    return "failed at something important and what you learned";
+  }
+  if (storyType === "Ambiguity") {
+    return "worked through an ambiguous problem";
+  }
+  return "handled a challenging situation";
+}
+
+function getConversationGuidance(scenarioId: Scenario["id"]) {
+  if (scenarioId === "salary-negotiation") {
+    return [
+      "This is an agent-initialized scenario. Start with the exact agent_opening_question.",
+      "Stay in role as the counterparty with real authority over compensation, title, scope, or offer terms.",
+      "After the user makes an ask, do not respond with neutral encouragement alone.",
+      "Every response should either ask a realistic follow-up question, state a specific concern, make a counteroffer, defer with a concrete next step, or agree/disagree with conditions.",
+      "If the user gives vague evidence, press for specifics about impact, market data, scope, timing, budget, or tradeoffs.",
+      "Before the session ends, force a practical outcome: yes, no, counteroffer, delayed review date, or explicit next-step owner.",
+    ].join(" ");
+  }
+
+  if (scenarioId === "networking-introduction") {
+    return [
+      "This is a user-initialized scenario. Wait for the user to introduce themselves before speaking.",
+      "Stay in role as the networking counterparty.",
+      "Every response should either ask a natural follow-up, react to what the user said, or move toward a plausible next step.",
+      "If the user is vague, ask for concrete detail about their work, motivation, audience, or what they are looking for.",
+      "Before the session ends, create an opportunity for a clear close, exchange, referral, or follow-up.",
+    ].join(" ");
+  }
+
+  return [
+    "This is an agent-initialized scenario. Start with the exact agent_opening_question.",
+    "Stay in role as the interviewer.",
+    "Every response should either ask a STAR follow-up, challenge vague claims, or move to the next relevant probe.",
+    "If the user skips situation, task, action, or result, ask for the missing element without coaching them on the framework.",
+    "Before the session ends, ask one pressure follow-up about tradeoffs, metrics, ownership, or lessons learned.",
+  ].join(" ");
 }
 
 async function requestFeedback(

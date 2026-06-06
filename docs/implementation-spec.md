@@ -119,6 +119,9 @@ Session input should include dynamic variables like:
   scenario_markdown: "...",
   user_context_json: "...",
   agent_parameters_json: "...",
+  conversation_start_mode: "agent_initialized",
+  agent_opening_question: "...",
+  conversation_guidance: "...",
   max_duration_minutes: "5",
   max_user_turns: "12"
 }

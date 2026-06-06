@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight } from "lucide-react";
 import { ContextQuestionnaire } from "@/components/ContextQuestionnaire";
 import { FeedbackReport } from "@/components/FeedbackReport";
 import { ScenarioPicker } from "@/components/ScenarioPicker";
@@ -58,20 +57,6 @@ export default function Home() {
             get a focused report tied to the transcript.
           </p>
         </div>
-        <div className="hero-console" aria-label="Session summary">
-          <div className="console-row">
-            <span>Scenario</span>
-            <strong>{selectedScenario?.shortTitle ?? "Choose one"}</strong>
-          </div>
-          <div className="console-row">
-            <span>Context</span>
-            <strong>{Object.keys(answers).length || "Pending"}</strong>
-          </div>
-          <div className="console-row">
-            <span>Status</span>
-            <strong>{step}</strong>
-          </div>
-        </div>
       </section>
 
       {step === "pick" ? (
@@ -81,15 +66,6 @@ export default function Home() {
               <p className="eyebrow">Select scenario</p>
               <h2>Three focused simulations</h2>
             </div>
-            <button
-              className="primary-button"
-              disabled={!selectedScenarioId}
-              onClick={() => setStep("context")}
-              type="button"
-            >
-              Continue
-              <ArrowRight aria-hidden="true" size={17} />
-            </button>
           </div>
           <ScenarioPicker
             scenarios={scenarios}
@@ -99,6 +75,7 @@ export default function Home() {
               setAnswers({});
               setFeedback(null);
               setTranscript([]);
+              setStep("context");
             }}
           />
         </section>
