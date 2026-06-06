@@ -21,10 +21,34 @@ import type {
   TranscriptEntry,
 } from "@/lib/types";
 
-const MAX_SECONDS = 5 * 60;
-const MAX_USER_TURNS = 12;
-const WARNING_SECONDS = 4 * 60;
-const WARNING_USER_TURNS = 10;
+const SESSION_LIMITS: Record<
+  Scenario["id"],
+  {
+    maxSeconds: number;
+    maxUserTurns: number;
+    warningSeconds: number;
+    warningUserTurns: number;
+  }
+> = {
+  "networking-introduction": {
+    maxSeconds: 90,
+    maxUserTurns: 4,
+    warningSeconds: 65,
+    warningUserTurns: 3,
+  },
+  "behavioral-interview-star": {
+    maxSeconds: 120,
+    maxUserTurns: 5,
+    warningSeconds: 90,
+    warningUserTurns: 4,
+  },
+  "salary-negotiation": {
+    maxSeconds: 150,
+    maxUserTurns: 6,
+    warningSeconds: 120,
+    warningUserTurns: 5,
+  },
+};
 
 export function VoiceSimulation(props: {
   scenario: Scenario;
@@ -78,21 +102,25 @@ function VoiceSimulationInner({
   const userTurns = transcript.filter((entry) => entry.role === "user").length;
   const isConnected = conversation.status === "connected";
   const isConnecting = conversation.status === "connecting" || isStarting;
-  const nearLimit = elapsed >= WARNING_SECONDS || userTurns >= WARNING_USER_TURNS;
-  const progress = Math.min(100, (elapsed / MAX_SECONDS) * 100);
-  const remaining = Math.max(0, MAX_SECONDS - elapsed);
+  const sessionLimit = SESSION_LIMITS[scenario.id];
+  const nearLimit =
+    elapsed >= sessionLimit.warningSeconds ||
+    userTurns >= sessionLimit.warningUserTurns;
+  const progress = Math.min(100, (elapsed / sessionLimit.maxSeconds) * 100);
+  const remaining = Math.max(0, sessionLimit.maxSeconds - elapsed);
 
   const sessionContext = useMemo(() => {
     const grouped = splitContextAnswers(scenario.id, answers);
+    const limit = SESSION_LIMITS[scenario.id];
     return {
       scenario_id: scenario.id,
       user_context_json: JSON.stringify(grouped.user_fact),
       agent_parameters_json: JSON.stringify(grouped.agent_parameter),
       conversation_start_mode: getConversationStartMode(scenario.id),
       agent_opening_question: getAgentOpeningQuestion(scenario.id, answers),
-      conversation_guidance: getConversationGuidance(scenario.id),
-      max_duration_minutes: "5",
-      max_user_turns: "12",
+      conversation_guidance: getConversationGuidance(scenario.id, limit),
+      max_duration_minutes: formatLimitMinutes(limit.maxSeconds),
+      max_user_turns: String(limit.maxUserTurns),
     };
   }, [answers, scenario.id]);
 
@@ -133,10 +161,10 @@ function VoiceSimulationInner({
 
   useEffect(() => {
     if (!isConnected && !sampleMode) return;
-    if (elapsed >= MAX_SECONDS || userTurns >= MAX_USER_TURNS) {
+    if (elapsed >= sessionLimit.maxSeconds || userTurns >= sessionLimit.maxUserTurns) {
       void endSession();
     }
-  }, [elapsed, endSession, isConnected, sampleMode, userTurns]);
+  }, [elapsed, endSession, isConnected, sampleMode, sessionLimit, userTurns]);
 
   async function startVoiceSession() {
     setError(null);
@@ -214,7 +242,7 @@ function VoiceSimulationInner({
             <p>Time remaining</p>
           </div>
           <div>
-            <span>{userTurns}/{MAX_USER_TURNS}</span>
+            <span>{userTurns}/{sessionLimit.maxUserTurns}</span>
             <p>User turns</p>
           </div>
           <div>
@@ -240,8 +268,9 @@ function VoiceSimulationInner({
                   : "Ready when you are"}
             </h3>
             <p>
-              The session ends at five minutes or twelve user turns. Feedback is
-              generated after the session closes.
+              The session ends at {formatLimitLabel(sessionLimit.maxSeconds)} or{" "}
+              {sessionLimit.maxUserTurns} user turns. Feedback is generated after
+              the session closes.
             </p>
           </div>
         </div>
@@ -432,9 +461,20 @@ function getInterviewQuestion(storyType?: string) {
   return "handled a challenging situation";
 }
 
-function getConversationGuidance(scenarioId: Scenario["id"]) {
+function getConversationGuidance(
+  scenarioId: Scenario["id"],
+  sessionLimit: (typeof SESSION_LIMITS)[Scenario["id"]],
+) {
+  const pacingGuidance = [
+    "Keep every agent response brief: one short question, objection, or decision at a time.",
+    "Do not give long explanations or multiple stacked prompts.",
+    `This run is capped at ${formatLimitLabel(sessionLimit.maxSeconds)} and ${sessionLimit.maxUserTurns} user turns.`,
+    "When the session is close to the limit, steer immediately toward a final answer, summary, or concrete next step.",
+  ].join(" ");
+
   if (scenarioId === "salary-negotiation") {
     return [
+      pacingGuidance,
       "This is an agent-initialized scenario. Start with the exact agent_opening_question.",
       "Stay in role as the counterparty with real authority over compensation, title, scope, or offer terms.",
       "After the user makes an ask, do not respond with neutral encouragement alone.",
@@ -446,6 +486,7 @@ function getConversationGuidance(scenarioId: Scenario["id"]) {
 
   if (scenarioId === "networking-introduction") {
     return [
+      pacingGuidance,
       "This is a user-initialized scenario. Wait for the user to introduce themselves before speaking.",
       "Stay in role as the networking counterparty.",
       "Every response should either ask a natural follow-up, react to what the user said, or move toward a plausible next step.",
@@ -455,6 +496,7 @@ function getConversationGuidance(scenarioId: Scenario["id"]) {
   }
 
   return [
+    pacingGuidance,
     "This is an agent-initialized scenario. Start with the exact agent_opening_question.",
     "Stay in role as the interviewer.",
     "Every response should either ask a STAR follow-up, challenge vague claims, or move to the next relevant probe.",
@@ -528,4 +570,18 @@ function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remainder = seconds % 60;
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
+function formatLimitMinutes(seconds: number) {
+  return Number.isInteger(seconds / 60)
+    ? String(seconds / 60)
+    : (seconds / 60).toFixed(1);
+}
+
+function formatLimitLabel(seconds: number) {
+  if (seconds < 60) return `${seconds} seconds`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  if (!remainder) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  return `${minutes} minute${minutes === 1 ? "" : "s"} ${remainder} seconds`;
 }

@@ -44,7 +44,7 @@ export default function Home() {
         </button>
         <div className="nav-meta">
           <span>Voice practice</span>
-          <span>5 min / 12 turns</span>
+          <span>Scenario caps</span>
         </div>
       </header>
 

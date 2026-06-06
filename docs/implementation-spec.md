@@ -29,7 +29,7 @@ Select scenario
   -> answer up to 5 questions
   -> start ElevenLabs voice session
   -> collect transcript in browser state
-  -> end after 5 minutes or 12 user turns
+  -> end after the scenario-specific time or user-turn cap
   -> generate feedback
   -> download transcript + feedback
 ```
@@ -122,8 +122,8 @@ Session input should include dynamic variables like:
   conversation_start_mode: "agent_initialized",
   agent_opening_question: "...",
   conversation_guidance: "...",
-  max_duration_minutes: "5",
-  max_user_turns: "12"
+  max_duration_minutes: "2.5",
+  max_user_turns: "6"
 }
 ```
 
@@ -139,12 +139,13 @@ The React voice component should:
 
 ## Session Limits
 
-Use both limits:
+Use both limits with scenario-specific caps:
 
-- 5 minutes maximum
-- 12 user turns maximum
+- Networking introduction: 1.5 minutes, 4 user turns
+- Behavioral interview: 2 minutes, 5 user turns
+- Salary negotiation: 2.5 minutes, 6 user turns
 
-At 4 minutes or 10 user turns, show a visible wrapping-up state. At the hard limit, call `endSession()`.
+Show a visible wrapping-up state shortly before each scenario's hard limit. At the hard limit, call `endSession()`.
 
 ## Feedback
 
@@ -232,7 +233,7 @@ Include:
 - User can complete the questionnaire.
 - `Surprise me` appears only for agent behavior parameters.
 - Voice session starts and ends.
-- Session auto-stops at 5 minutes or 12 user turns.
+- Session auto-stops at the scenario-specific time or user-turn cap.
 - Transcript appears.
 - Feedback appears.
 - Combined Markdown download works.

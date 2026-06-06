@@ -146,8 +146,9 @@ The generated answers should be injected into the agent prompt as session contex
 
 For the MVP, limit conversations using both time and turns:
 
-- Maximum duration: 5 minutes
-- Maximum user turns: 12
+- Networking introduction: 1.5 minutes, 4 user turns
+- Behavioral interview: 2 minutes, 5 user turns
+- Salary negotiation: 2.5 minutes, 6 user turns
 - Warning: agent should signal when the session is near the end
 - Hard stop: app ends the session when either limit is reached
 
@@ -240,7 +241,7 @@ Scenario markdown
 - User can select all three scenarios.
 - User can answer up to five generated context questions.
 - User can complete a live voice conversation with an ElevenLabs Agent.
-- Conversation ends cleanly after 5 minutes or 12 user turns.
+- Conversation ends cleanly after the scenario-specific time or user-turn cap.
 - User sees a transcript.
 - User sees structured feedback.
 - User can download the transcript and feedback.

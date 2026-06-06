@@ -17,6 +17,12 @@ The app sends these variables on every session:
 - `max_duration_minutes`
 - `max_user_turns`
 
+Current scenario limits:
+
+- Networking introduction: 1.5 minutes, 4 user turns.
+- Behavioral interview: 2 minutes, 5 user turns.
+- Salary negotiation: 2.5 minutes, 6 user turns.
+
 ## First message
 
 Set the agent first message to:
@@ -70,6 +76,8 @@ Session limits:
 - Maximum user turns: {{max_user_turns}}
 
 If conversation_start_mode is agent_initialized, open with the exact scenario-specific opening question. If conversation_start_mode is user_initialized, do not speak first; wait for the user to start. Stay in role as the counterparty. Keep responses concise and conversational because this is a live voice practice session.
+
+Keep every agent response brief: one short question, objection, or decision at a time. Do not give long explanations or multiple stacked prompts. When the session is close to the limit, steer immediately toward a final answer, summary, or concrete next step.
 
 Do not let the conversation stall. Every agent response should do at least one of these:
 - Ask a natural follow-up question.
